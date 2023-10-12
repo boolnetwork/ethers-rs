@@ -112,13 +112,41 @@ pub struct Transaction {
     /// baseFeePerGas + maxPriorityFeePerGas is “refunded” to the user.
     pub max_fee_per_gas: Option<U256>,
 
-    #[serde(rename = "chainId", default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "chainId", default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_number")]
     pub chain_id: Option<U256>,
 
     /// Captures unknown fields such as additional fields used by L2s
     #[cfg(not(feature = "celo"))]
     #[serde(flatten)]
     pub other: crate::types::OtherFields,
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(untagged)]
+pub enum NumberOrHex {
+    /// The number represented directly.
+    Number(u64),
+    /// Hex representation of the number.
+    Hex(U256),
+}
+
+impl NumberOrHex {
+    /// Converts this number into an U256.
+    pub fn into_u256(self) -> U256 {
+        match self {
+            NumberOrHex::Number(n) => n.into(),
+            NumberOrHex::Hex(h) => h,
+        }
+    }
+}
+
+fn deserialize_number<'a, D, T: TryFrom<U256>>(d: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'a>,
+{
+    let number_or_hex = NumberOrHex::deserialize(d)?;
+    let u256 = number_or_hex.into_u256();
+    TryFrom::try_from(u256).map_err(|_| serde::de::Error::custom("Try from failed"))
 }
 
 impl Transaction {
