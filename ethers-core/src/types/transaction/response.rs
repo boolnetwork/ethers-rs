@@ -140,13 +140,12 @@ impl NumberOrHex {
     }
 }
 
-fn deserialize_number<'a, D, T: TryFrom<U256>>(d: D) -> Result<T, D::Error>
+fn deserialize_number<'a, D, T: TryFrom<Option<U256>>>(d: D) -> Result<T, D::Error>
 where
     D: serde::Deserializer<'a>,
 {
-    let number_or_hex = NumberOrHex::deserialize(d)?;
-    let u256 = number_or_hex.into_u256();
-    TryFrom::try_from(u256).map_err(|_| serde::de::Error::custom("Try from failed"))
+    let number_or_hex = Option::<NumberOrHex>::deserialize(d)?;
+    TryFrom::try_from(number_or_hex.map(|v| v.into_u256())).map_err(|_| serde::de::Error::custom("Try from failed"))
 }
 
 impl Transaction {
